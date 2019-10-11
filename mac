@@ -1,0 +1,4 @@
+MADN	//MenschAergereDichNicht
+	set Partie=##class(Azubi.Spiele.MADN.Partie).%New()
+	do Partie.Spielen()
+	QUIT
