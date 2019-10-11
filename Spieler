@@ -1,0 +1,23 @@
+Class Azubi.Spiele.MADN.Spieler Extends %RegisteredObject
+{
+
+Property Figuren As %ListOfObjects;
+
+Property Start As %Integer;
+
+Property Name As %String;
+
+Property Farbe As %String;
+
+Method %OnNew(Name, Farbe, HausNummer) As %Status
+{
+	set ..Start=HausNummer
+	set ..Name=Name
+	set ..Farbe=Farbe
+	for i=1:1:4 {
+		do ..Figuren.Insert(##class(Azubi.Spiele.MADN.Figuren).%New(..Farbe, HausNummer))
+	}
+	RETURN $$$OK
+}
+
+}
