@@ -1,0 +1,1216 @@
+Class Azubi.Spiele.MADN.Partie Extends %RegisteredObject
+{
+
+Property Brett As %RegisteredObject;
+
+Property Würfel As %RegisteredObject;
+
+Property Spieler As %ListOfObjects;
+
+Property PlayerOne As %Integer;
+
+Property HausnummerCheck As %String [ MultiDimensional ];
+
+Property FarbenCheck As %String [ MultiDimensional ];
+
+Property Quit As %Boolean;
+
+Method %OnNew() As %Status
+{
+	;Daten der Spieler (Anzahl, Namen, Farben und Häuser) abfragen, Quit wenn input='q'
+	set ..PlayerOne="", ..Quit=0
+	set wieVieleSpieler=..setSpielbeginn()
+	do ..setQuit(wieVieleSpieler)
+	for i=1:1:wieVieleSpieler {
+		set Name=..getName()
+		QUIT:(..setQuit(Name))
+		set Farbe=..getFarbe(wieVieleSpieler, i)
+		QUIT:(..setQuit(Farbe))	
+		set HausNummer=..getHausNummer(wieVieleSpieler, i)
+		QUIT:(..setQuit(HausNummer))
+		write !
+		do ..Spieler.Insert(##class(Azubi.Spiele.MADN.Spieler).%New(Name, Farbe, HausNummer))
+	}
+	write:(..Quit=0) #
+	RETURN $$$OK
+}
+
+Method setSpielbeginn()
+{
+	;Brett und Würfel erstellen, Spieleranzahl holen und Vergleichswerte für Farben und Hausnummern der Spieler anlegen
+	write #
+	do ..createBoardAndDice()
+	set wieVieleSpieler=..getWieVieleSpieler()
+	do ..setPlayerVergleich(wieVieleSpieler)
+	RETURN wieVieleSpieler
+}
+
+Method setQuit(x)
+{
+	;Check, ob user quitten will
+	if (x="Q") {
+		set ..Quit=1
+		RETURN ..Quit
+	}
+	RETURN ..Quit
+}
+
+Method createBoardAndDice()
+{
+	set ..Brett = ##class(Azubi.Spiele.MADN.Brett).%New()
+	set ..Würfel = ##class(Azubi.Spiele.MADN.Würfel).%New()
+}
+
+Method getWieVieleSpieler()
+{
+	;Spieleranzahl abfragen und auf Validität (1-4) checken, quit if 'q', Brett ausgeben
+	for {
+		read "Wie viele Spieler? ", wieVieleSpieler#2
+		set wieVieleSpieler=$ZCVT(wieVieleSpieler, "U")
+		QUIT:(wieVieleSpieler="Q")
+		if ((wieVieleSpieler<1) || (wieVieleSpieler>4)) {
+			write !, "Invalid entry. Only 1-4 players allowed.", !
+			hang 1
+			do ..Brett.writeBoard()
+		}  else {
+			QUIT
+		}
+	}
+	RETURN wieVieleSpieler
+}
+
+Method setPlayerVergleich(wieVieleSpieler)
+{
+	do ..setHausnummerCheck(wieVieleSpieler)
+	do ..setFarbenCheck(wieVieleSpieler)
+}
+
+Method setHausnummerCheck(wieVieleSpieler)
+{
+	;legt Platzhalter-Werte (invalid values) an, die später mit den wirklichen Werten überschrieben werden
+	for i=1:1:wieVieleSpieler {
+		set ..HausnummerCheck(i)=i+4
+	}
+}
+
+Method setFarbenCheck(wieVieleSpieler)
+{
+	;legt Platzhalter-Werte (invalid values) an, die später mit den wirklichen Werten überschrieben werden
+	for i=1:1:wieVieleSpieler {
+		set ..FarbenCheck(i)=i+9
+	}
+}
+
+Method getName()
+{
+	;Spielernamen abfragen (1-10 characters), quit if 'q'
+	for {
+		read !,"Name: ",Name#11
+		set Name=$ZCVT(Name, "U")
+		set Name=$TR(Name, " ", "")
+		QUIT:(Name="Q")
+		if ($L(Name)>10) {
+			write !, "Invalid entry. Maximum of 10 characters allowed."
+		} elseif (Name="") {
+			write !, "Invalid entry. 'Name' has to consist of at least one character."
+		} else {
+			QUIT
+		}
+	}
+	RETURN Name
+}
+
+Method getFarbe(wieVieleSpieler, i)
+{
+	;Spielerfarben abfragen (1 character), quit if 'q', eingegebene Werte vergleichen (keine identischen Farben)
+	for {
+		set different=1
+		read !,"Farbe: ",Farbe#2
+		set Farbe=$ZCVT(Farbe, "U")
+		set Farbe=$TR(Farbe, " ", "")
+		QUIT:(Farbe="Q")
+		if (($L(Farbe)>1) || (Farbe="")) {
+			write !, "Invalid entry. 'Farbe' has to consist of one character"
+		} else {
+			set ..FarbenCheck(i)=Farbe
+			set different=..setFarbenVergleich(wieVieleSpieler, different)
+			QUIT:(different=1)
+		}
+	}
+	RETURN Farbe
+}
+
+Method setFarbenVergleich(wieVieleSpieler, different)
+{
+	;Spielerfarben vergleichen
+	for j=1:1:wieVieleSpieler {
+		for k=j:1:wieVieleSpieler {
+			CONTINUE:(k=j)
+			;
+			if (..FarbenCheck(j)=..FarbenCheck(k)) {
+				write !, "Invalid entry! 'Farbe' values cannot be identical"
+				set different=0
+				RETURN different
+			} 
+		}
+	}
+	RETURN different
+}
+
+Method getHausNummer(wieVieleSpieler, i)
+{
+	;Hauswahl, keine identischen Häuser -> vergleichen, quit if 'q'
+	for {
+		set different=1
+		read !, "HausNummer: ",HausNummer#2
+		set HausNummer=$ZCVT(HausNummer, "U")
+		set HausNummer=$TR(HausNummer, " ", "")
+		QUIT:(HausNummer="Q")
+		if ((HausNummer>0) && (HausNummer<5) && ($L(HausNummer)=1) && ($ISVALIDNUM(HausNummer)) && ((HausNummer'=""))) {
+			set ..HausnummerCheck(i)=HausNummer
+			set different=..setHausnummerVergleich(wieVieleSpieler, different)
+		} else {
+			write !, "Invalid entry. 'Hausnummer' has to be a number between 1-4."
+			set different=0
+		} 
+		if (different=1){
+			QUIT
+		}
+	}
+	RETURN HausNummer
+}
+
+Method setHausnummerVergleich(wieVieleSpieler, different)
+{
+	;gewählte Häuser vergleichen
+	for j=1:1:wieVieleSpieler {
+		for k=j:1:wieVieleSpieler {
+			CONTINUE:(k=j)
+			;
+			if (..HausnummerCheck(j)=..HausnummerCheck(k)) {
+				write !, "Invalid entry! 'Hausnummer' values cannot be identical"
+				set different=0
+				RETURN different
+			} 
+		}
+	}
+	RETURN different
+}
+
+Method Spielen()
+{
+	;MAIN FUNCTION
+	QUIT:(..Quit=1)
+	set aktuellerSpieler=..setPlayerOne()-1					;bestimmen wer anfängt
+	set NochmalWuerfeln=0
+	do ..setBoardSpielbeginn()								;Brett für Spieler vorbereiten
+	for {
+		set aktuellerSpieler=..setTurns(NochmalWuerfeln, aktuellerSpieler)							;bestimmen wer dran ist
+		set HausNummer=..Spieler.GetAt(aktuellerSpieler).Start
+		set AlleFigurenImHaus=..setAlleFigurenImHaus(aktuellerSpieler)								;Check, ob alle Figuren im Haus sind
+		set WirklichUnbewegbar=..setWirklichUnbewegbar(aktuellerSpieler)							;Check, ob alle Figuren unbewegbar sind und eine 6 benötigt wird
+		set Augenzahl=..setAugenzahl(NochmalWuerfeln, AlleFigurenImHaus, aktuellerSpieler, WirklichUnbewegbar)	;würfeln
+		QUIT:(..Quit=1)
+		set NochmalWuerfeln=0
+		set AlleUnbewegbar=..setAlleBewegbar(aktuellerSpieler)										;alle Figuren des aktuellen Spielers auf bewegbar setzen & AlleUnbewegbar=0
+		if ((WirklichUnbewegbar=0) || (AlleFigurenImHaus=0) || ((AlleFigurenImHaus=1) && (Augenzahl=6))) {
+			set AlleUnbewegbar=..setAlleUnbewegbar(AlleFigurenImHaus, Augenzahl, aktuellerSpieler, HausNummer)		;Check, welche Figuren unbewegbar sind
+		}
+		set:(Augenzahl=6) NochmalWuerfeln=1					;wenn 6 gewürfelt wurde darf nach Zug nochmal gewürfelt werden
+		set:(NochmalWuerfeln=1) WirklichUnbewegbar=0		;wurde eine 6 gewürfelt ist automatisch mindestens eine Figur bewegbar oder man darf nochmal würfeln
+		CONTINUE:((((AlleFigurenImHaus=1) || (WirklichUnbewegbar=1)) && (Augenzahl'=6)) || (AlleUnbewegbar=1))
+		;sind alle Figuren im Haus oder wirklich unbewegbar (mit jeder Augenzahl außer 6) und hat man keine 6 gewürfelt, wird der Zug übersprungen
+		set gewählteFigur=..getFigur(aktuellerSpieler, Augenzahl, HausNummer)		;zu bewegende Figur abfragen
+		QUIT:(..Quit=1)
+		do ..setMove(aktuellerSpieler, Augenzahl, HausNummer, gewählteFigur, ..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).PositionImHaus, ..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).PositionAufBrett, ..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).Position, ..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).PositionImZiel)
+		do ..setBoard(..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).Position,..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).PositionAufBrett, ..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).PositionImZiel, HausNummer)
+		do:(..checkAlleImZiel(aktuellerSpieler)) ..writeGameOver(aktuellerSpieler)					;sind alle Figuren eines Spielers im Ziel, ist das Spiel vorbei
+		QUIT:(..checkAlleImZiel(aktuellerSpieler))
+	}
+}
+
+Method setPlayerOne()
+{
+	;wer darf anfangen (höchste Augenzahl)
+	set Player=..getPlayerOne()
+	write !, "Player One: Spieler ", Player, !
+	hang 1
+	write #
+	RETURN Player
+}
+
+Method getPlayerOne()
+{
+	;jeder Spieler einmal würfeln, Vergleich der gewürfelten Augenzahlen und anschließende Wiederholung (falls unentschieden)
+	for i=1:1:4 {
+		set Augenzahl(i)=0
+	}
+	set Player=1
+	set Unentschieden=1
+	if (..Spieler.Count()>1) {
+		for {
+			for i=1:1:..Spieler.Count() {
+				set Augenzahl(i)=..doEinmalWuerfeln(i)
+			}
+			hang 0.5
+			set Unentschieden=..setWuerfelVergleich(Augenzahl(1), Augenzahl(2), Augenzahl(3), Augenzahl(4), Unentschieden)
+			set:(Unentschieden=0) Player=..PlayerOne
+			QUIT:(Unentschieden=0)
+		}
+	}
+	RETURN Player
+}
+
+Method setWuerfelVergleich(Augenzahl1, Augenzahl2, Augenzahl3, Augenzahl4, Unentschieden)
+{
+	;Check, ob Unentschieden bei Wahl von PlayerOne
+	if ((Augenzahl1>Augenzahl2) && (Augenzahl1>Augenzahl3) && (Augenzahl1>Augenzahl4)) {
+		set ..PlayerOne=1, Unentschieden=0
+	} elseif ((Augenzahl2>Augenzahl1) && (Augenzahl2>Augenzahl3) && (Augenzahl2>Augenzahl4)) {
+		set ..PlayerOne=2, Unentschieden=0
+	} elseif ((Augenzahl3>Augenzahl1) && (Augenzahl3>Augenzahl2) && (Augenzahl3>Augenzahl4)) {
+		set ..PlayerOne=3, Unentschieden=0
+	} elseif ((Augenzahl4>Augenzahl1) && (Augenzahl4>Augenzahl3) && (Augenzahl4>Augenzahl2)) {
+		set ..PlayerOne=4, Unentschieden=0
+	} else {
+		write !!, "Unentschieden! Try again"
+		hang 1.5
+		write #
+	}
+	RETURN Unentschieden
+}
+
+Method setBoardSpielbeginn()
+{
+	;Brett erstellen und alle Figuren in ihre Häuser setzen
+	do ..setFigurenInsHaus()
+	do ..Brett.writeBoard()
+}
+
+Method setFigurenInsHaus()
+{
+	;Wert für Position im Haus holen, zuweisen und das jeweilige Feld mit einer Figur besetzen
+	for Spielernummer=1:1:..Spieler.Count() {
+		for Figur=1:1:4 {
+			set PositionImHaus=..Brett.getPositionImHaus(..Spieler.GetAt(Spielernummer).Start, Figur)
+			set ..Spieler.GetAt(Spielernummer).Figuren.GetAt(Figur).PositionImHaus=PositionImHaus
+			set ..Brett.Felder(PositionImHaus)=..Spieler.GetAt(Spielernummer).Figuren.GetAt(Figur).Farbe
+			set ..Spieler.GetAt(Spielernummer).Figuren.GetAt(Figur).Position=PositionImHaus
+		}
+	}
+}
+
+Method setTurns(NochmalWuerfeln, aktuellerSpieler)
+{
+	;Check, ob Zug gewechselt werden muss
+	if ((..Spieler.Count()>1) && (NochmalWuerfeln=0)) {
+		set aktuellerSpieler=..takeTurns(aktuellerSpieler)
+	} elseif ((..Spieler.Count()>1) && (NochmalWuerfeln=1)) {
+		set aktuellerSpieler=aktuellerSpieler
+	} else {
+		set aktuellerSpieler=1
+	}
+	RETURN aktuellerSpieler
+}
+
+Method takeTurns(aktuellerSpieler)
+{
+	;next player
+	set aktuellerSpieler=$I(aktuellerSpieler)
+	if (aktuellerSpieler=(..Spieler.Count()+1)) {
+		set aktuellerSpieler=1
+	}
+	RETURN aktuellerSpieler
+}
+
+Method setWirklichUnbewegbar(aktuellerSpieler)
+{
+	;Check, ob alle Figuren mit keiner Augenzahl (außer 6) bewegbar sind
+	set WirklichUnbewegbar=0
+	if ((..setAlleFigurenImHaus(aktuellerSpieler)) || (..setZielBelegt(aktuellerSpieler))) {
+		set WirklichUnbewegbar=1
+	}
+	RETURN WirklichUnbewegbar
+}
+
+Method setAlleFigurenImHaus(aktuellerSpieler)
+{
+	;Check, ob alle Figuren im Haus sind
+	set AlleFigurenImHaus=1
+	for i=1:1:4 {
+		set Figur=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(i)
+		if ((Figur.Position'=Figur.PositionImHaus)) {
+			set AlleFigurenImHaus=0
+		}
+	}
+	RETURN AlleFigurenImHaus
+}
+
+Method setZielBelegt(aktuellerSpieler)
+{
+	;Check, ob Figuren unbewegbar im Ziel & restliche Figuren im Haus
+	for Figur1=1:1:4 {
+		set FigurOne=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(Figur1)
+		for Figur2=1:1:4 {
+			CONTINUE:(Figur2=Figur1)
+			;
+			set FigurTwo=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(Figur2)
+			for Figur3=1:1:4 {
+				CONTINUE:((Figur3=Figur2) || (Figur3=Figur1))
+				;
+				set FigurThree=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(Figur3)
+				for Figur4=1:1:4 {
+					CONTINUE:((Figur4=Figur3) || (Figur4=Figur2) || (Figur4=Figur1))
+					;
+					set FigurFour=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(Figur4)
+					set ZielBelegt=..checkFigurenImZiel(FigurOne, FigurTwo, FigurThree, FigurFour)
+					RETURN:(ZielBelegt=1) ZielBelegt
+				}
+			}
+		}
+	}
+	RETURN ZielBelegt
+}
+
+Method checkFigurenImZiel(FigurOne, FigurTwo, FigurThree, FigurFour)
+{
+	;entweder 3 Figuren an Spitze in Ziel & 2 Figuren im Haus, oder 2 in Ziel 2 in Haus oder 1 in Ziel 3 in Haus
+	set ZielBelegt=0
+	if (((FigurOne.PositionImZiel=4) && (FigurTwo.PositionImZiel=3) && (FigurThree.PositionImZiel=2) && (FigurFour.Position=FigurFour.PositionImHaus))
+		|| ((FigurOne.PositionImZiel=4) && (FigurTwo.PositionImZiel=3) && (FigurThree.Position=FigurThree.PositionImHaus) && (FigurFour.Position=FigurFour.PositionImHaus))
+		|| ((FigurOne.PositionImZiel=4) && (FigurTwo.Position=FigurTwo.PositionImHaus) && (FigurThree.Position=FigurThree.PositionImHaus)
+		&& (FigurFour.Position=FigurFour.PositionImHaus))) {
+		set ZielBelegt=1
+	}
+	RETURN ZielBelegt
+}
+
+Method setAugenzahl(NochmalWuerfeln, AlleFigurenImHaus, aktuellerSpieler, WirklichUnbewegbar)
+{
+	;Check, ob einmal oder dreimal gewürfelt werden muss mit anschließendem Würfeln
+	do:(NochmalWuerfeln=1) ..writeNochmalWuerfeln(NochmalWuerfeln)
+	set Augenzahl=..checkWieOftWuerfeln(AlleFigurenImHaus, aktuellerSpieler, WirklichUnbewegbar)
+	RETURN Augenzahl
+}
+
+Method writeNochmalWuerfeln(NochmalWuerfeln)
+{
+	write !, "Du darfst noch einmal würfeln", !
+}
+
+Method checkWieOftWuerfeln(AlleFigurenImHaus, aktuellerSpieler, WirklichUnbewegbar)
+{
+	;1x oder 3x würfeln
+	if ((AlleFigurenImHaus=1) || (WirklichUnbewegbar=1)) {
+		set Augenzahl=..doDreimalWuerfeln(aktuellerSpieler)
+	} elseif (AlleFigurenImHaus=0) {
+		set Augenzahl=..doEinmalWuerfeln(aktuellerSpieler)
+	}
+	RETURN Augenzahl
+}
+
+Method doDreimalWuerfeln(aktuellerSpieler)
+{
+	;3x oder bis 6 würfeln, Brett ausgeben, quit if 'q' 
+	write "Spieler "_aktuellerSpieler_", du hast 3 Versuche, eine 6 zu würfeln"
+	for i=1:1:3 {
+		write !, "Press any key to roll the dice"
+		read anykey#1
+		set anykey=$ZCVT(anykey, "U")
+		if (anykey="Q") {
+			set ..Quit=1
+			RETURN $$$OK
+		}
+		set Augenzahl=..assignAugenzahl()
+		do ..writeAugenzahl(Augenzahl, aktuellerSpieler)
+		QUIT:(Augenzahl=6)
+	}
+	write:(Augenzahl'=6) "Du hast keine 6 gewürfelt", !
+	hang 0.5
+	write:(Augenzahl=6) #
+	do:(Augenzahl'=6) ..Brett.writeBoard()
+	RETURN Augenzahl
+}
+
+Method doEinmalWuerfeln(aktuellerSpieler)
+{
+	;1x würfeln, quit if 'q'
+	write !, "Spieler "_aktuellerSpieler_"! Press any key to roll the dice", !
+	read anykey#1
+	set anykey=$ZCVT(anykey, "U")
+	if (anykey="Q") {
+		set ..Quit=1
+		RETURN $$$OK
+	}
+	set Augenzahl=..assignAugenzahl()
+	do ..writeAugenzahl(Augenzahl, aktuellerSpieler)
+	RETURN Augenzahl
+}
+
+Method assignAugenzahl()
+{
+	;würfeln
+	RETURN ..Würfel.rollDice()
+}
+
+Method writeAugenzahl(Augenzahl, aktuellerSpieler)
+{
+	write !, "Spieler "_aktuellerSpieler_"! Du hast eine "_Augenzahl_" gewürfelt", !
+}
+
+Method setAlleBewegbar(aktuellerSpieler)
+{
+	;setzt alle Figuren des aktuellen Spielers auf bewegbar und AlleUnbewegbar=0
+	set AlleUnbewegbar=0
+	for Figur=1:1:4 {
+		set ..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(Figur).Bewegbar=1
+	}
+	RETURN AlleUnbewegbar
+}
+
+Method setAlleUnbewegbar(AlleFigurenImHaus, Augenzahl, aktuellerSpieler, HausNummer)
+{
+	;checkt, welche Figuren des Spielers unbewegbar sind bzw. ob es bewegbare Figuren gibt (AlleUnbewegbar=0)
+	set AlleUnbewegbar=1
+	for Figur=1:1:4 {
+		set AlleUnbewegbar=..checkZugMoeglich(aktuellerSpieler, Augenzahl, HausNummer, ..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(Figur).PositionImHaus, ..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(Figur).Position, ..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(Figur).PositionAufBrett, ..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(Figur).PositionImZiel, Figur)
+		QUIT:(AlleUnbewegbar=0) 
+	}
+	do:(AlleUnbewegbar=1) ..writeZugNichtMoeglich()
+	RETURN AlleUnbewegbar
+}
+
+Method checkZugMoeglich(aktuellerSpieler, Augenzahl, HausNummer, PositionImHaus, Position, PositionAufBrett, PositionImZiel, Figur)
+{
+	;Check, ob alle Figuren unbewegbar sind (mit gewürfelter Augenzahl) und ob der Zug somit nicht möglich ist
+	set Unbewegbar=1
+	set Unbewegbar=..checkAlleUnbewegbar(aktuellerSpieler, Augenzahl, HausNummer, PositionImHaus, Position, PositionAufBrett, PositionImZiel, Figur)
+	RETURN Unbewegbar
+}
+
+Method checkAlleUnbewegbar(aktuellerSpieler, Augenzahl, HausNummer, PositionImHaus, Position, PositionAufBrett, PositionImZiel, Figur)
+{
+	;Check, ob alle Figuren nicht bewegbar mit aktueller Augenzahl
+	set Unbewegbar=1
+ 	set Error=..setError(aktuellerSpieler, Figur, HausNummer, Augenzahl)
+ 	set:(Error=0) Unbewegbar=0		
+	RETURN Unbewegbar
+}
+
+Method setError(aktuellerSpieler, gewählteFigur, HausNummer, Augenzahl)
+{
+	;Check, ob Figur bewegt werden kann oder nicht
+	set Error=..checkAllErrors(aktuellerSpieler, Augenzahl, gewählteFigur, HausNummer)
+	do ..setUnbewegbar(Error, aktuellerSpieler, gewählteFigur)	
+	RETURN Error
+}
+
+Method checkAllErrors(aktuellerSpieler, Augenzahl, gewählteFigur, HausNummer)
+{
+	;alle möglichen Errors (Figur auf Startfeld kann nicht gesetzt werden (1), Figur kann nicht von Haus auf Startfeld gesetzt werden da besetzt (2),
+	;Figur kann nicht aus Haus gesetzt werden da keine 6 gewürfelt (3), Figur auf Feld kann nicht mit 6 bewegt werden da noch Figuren im Haus (4)
+	;Figur kann nicht ins Ziel gesetzt werden da die Augenzahl zu hoch ist und die Figur zu weit gehen würde (5)
+	;Figur kann nicht gesetzt werden da das Feld auf das es gesetzt werden soll nicht frei ist (6), Figur darf im Ziel keine anderen Figuren überspringen (7))
+	set Error=1
+	for i=1:1:1 {
+		set Bewegbar=..checkSetzpflicht(aktuellerSpieler, Augenzahl, gewählteFigur, HausNummer)			;(1)
+		QUIT:(('Bewegbar) || (Bewegbar=2))
+		set Bewegbar=..setStartfeldFrei(aktuellerSpieler, gewählteFigur, HausNummer, Augenzahl)			;(2)
+		QUIT:('Bewegbar)
+		set Bewegbar=..checkForSechs(aktuellerSpieler, gewählteFigur, Augenzahl)						;(3)
+		QUIT:('Bewegbar)
+		set Bewegbar=..checkImHaus(aktuellerSpieler, gewählteFigur, Augenzahl, HausNummer)				;(4)
+		QUIT:('Bewegbar)
+		set Bewegbar=..checkUebersZielHinaus(aktuellerSpieler, gewählteFigur, Augenzahl, HausNummer)	;(5)
+		QUIT:('Bewegbar)
+		set Bewegbar=..checkFeldFrei(Augenzahl, aktuellerSpieler, gewählteFigur, HausNummer)			;(6)
+		QUIT:('Bewegbar)		
+		set Bewegbar=..setAntiBockSpringen(aktuellerSpieler, gewählteFigur, Augenzahl, HausNummer)		;(7)
+		QUIT:('Bewegbar)
+		set Error=0
+	}
+	set:(Bewegbar=2) Error=0
+	RETURN Error
+}
+
+Method checkSetzpflicht(aktuellerSpieler, Augenzahl, gewählteFigur, HausNummer)
+{
+	;wird das Setzen der Figur auf dem Startfeld blockiert, muss die blockierende Figur gesetzt werden
+	set ausgewählteFigur=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur)
+	set Bewegbar=..setSetzpflicht(gewählteFigur, aktuellerSpieler, Augenzahl, ausgewählteFigur, HausNummer)
+	RETURN Bewegbar
+}
+
+Method setSetzpflicht(gewählteFigur, aktuellerSpieler, Augenzahl, ausgewählteFigur, HausNummer)
+{
+	;4 Figuren zum Vergleich anlegen, Prüfung starten, einfache bis dreifache Blockierung möglich
+	set Bewegbar=1
+	for i=1:1:4 {
+		CONTINUE:(i=gewählteFigur)
+		;
+		set vergleichsFigur=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(i)
+		for k=1:1:4 {
+			CONTINUE:(k=i)
+			;
+			set andereFigur1=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(k)
+			for j=1:1:4 {
+				CONTINUE:(j=k || j=i)
+				;
+				set andereFigur2=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(j)
+				for h=1:1:4 {
+					CONTINUE:((h=k) || (h=i) || (h=j))
+					;
+					set andereFigur3=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(h)
+					set Bewegbar=..setBewegbarSetzpflicht(gewählteFigur, HausNummer, vergleichsFigur, aktuellerSpieler, andereFigur1, andereFigur2, andereFigur3, Augenzahl, ausgewählteFigur, Bewegbar)
+					RETURN:(('Bewegbar) || (Bewegbar=2)) Bewegbar
+				} 
+			}
+		}
+	}
+	RETURN Bewegbar
+}
+
+Method setBewegbarSetzpflicht(gewählteFigur, HausNummer, vergleichsFigur, aktuellerSpieler, andereFigur1, andereFigur2, andereFigur3, Augenzahl, ausgewählteFigur, Bewegbar)
+{
+	;einfache (v1), doppelte (v2), oder dreifache (v3) Blockierung
+	set Bewegbar=..setBewegbarv3(andereFigur3, Bewegbar, vergleichsFigur, Augenzahl, andereFigur1, andereFigur2, ausgewählteFigur, HausNummer)
+	RETURN:(('Bewegbar) || (Bewegbar=2)) Bewegbar
+	set Bewegbar=..setBewegbarv2(vergleichsFigur, Augenzahl, andereFigur1, andereFigur2, ausgewählteFigur, Bewegbar, HausNummer)
+	RETURN:(('Bewegbar) || (Bewegbar=2)) Bewegbar
+	set Bewegbar=..setBewegbarv1(vergleichsFigur, Augenzahl, andereFigur1, ausgewählteFigur, Bewegbar, HausNummer)
+	RETURN:(('Bewegbar) || (Bewegbar=2)) Bewegbar
+	RETURN Bewegbar
+}
+
+Method setBewegbarv3(andereFigur3, Bewegbar, vergleichsFigur, Augenzahl, andereFigur1, andereFigur2, ausgewählteFigur, HausNummer)
+{
+	;dreifache Blockierung Bsp.: Figur 1 auf Position 1, Figur 2 auf Position 5, Figur 3 auf Position 9, Figur 4 auf Position 13, Augenzahl=4
+	set Bewegbar=..setBewegbarAufNullv3(andereFigur3, Bewegbar, vergleichsFigur, Augenzahl, andereFigur1, andereFigur2, ausgewählteFigur, HausNummer)
+	RETURN:('Bewegbar) Bewegbar
+	set Bewegbar=..setBewegbarAufZweiv3(andereFigur3, Bewegbar, vergleichsFigur, Augenzahl, andereFigur1, andereFigur2, ausgewählteFigur, HausNummer)
+	RETURN:(Bewegbar=2) Bewegbar
+	RETURN Bewegbar
+}
+
+Method setBewegbarv2(vergleichsFigur, Augenzahl, andereFigur1, andereFigur2, ausgewählteFigur, Bewegbar, HausNummer)
+{
+	;doppelte Blockierung Bsp.: Figur 1 auf Position 1, Figur 2 auf Position 5, Figur 3 auf Position 9, Augenzahl=4
+	set Bewegbar=..setBewegbarAufNullv2(vergleichsFigur, Augenzahl, andereFigur1, andereFigur2, ausgewählteFigur, Bewegbar, HausNummer)
+	RETURN:('Bewegbar) Bewegbar
+	set Bewegbar=..setBewegbarAufZweiv2(vergleichsFigur, Augenzahl, andereFigur1, andereFigur2, ausgewählteFigur, Bewegbar, HausNummer)
+	RETURN:(Bewegbar=2) Bewegbar
+	RETURN Bewegbar
+}
+
+Method setBewegbarv1(vergleichsFigur, Augenzahl, andereFigur1, ausgewählteFigur, Bewegbar, HausNummer)
+{
+	;einfache Blockierung Bsp.: Figur 1 auf Position 1, Figur 2 auf Position 5, Augenzahl=4
+	set Bewegbar=..setBewegbarAufNullv1(vergleichsFigur, Augenzahl, andereFigur1, ausgewählteFigur, Bewegbar, HausNummer)
+	RETURN:('Bewegbar) Bewegbar
+	set Bewegbar=..setBewegbarAufZweiv1(vergleichsFigur, Augenzahl, andereFigur1, ausgewählteFigur, Bewegbar, HausNummer)
+	RETURN:(Bewegbar=2) Bewegbar
+	RETURN Bewegbar
+}
+
+Method setBewegbarAufNullv3(andereFigur3, Bewegbar, vergleichsFigur, Augenzahl, andereFigur1, andereFigur2, ausgewählteFigur, HausNummer)
+{
+	;dreifache Blockierung + letzte blockierende Figur nicht gewählt (-> Error)
+	if ((vergleichsFigur.Position=..Brett.getStartPosition(HausNummer))
+		&& ((vergleichsFigur.PositionAufBrett+Augenzahl)=andereFigur1.PositionAufBrett)
+		&& ((andereFigur1.PositionAufBrett+Augenzahl)=andereFigur2.PositionAufBrett)
+		&& ((andereFigur2.PositionAufBrett+Augenzahl)=andereFigur3.PositionAufBrett)
+		&& (andereFigur3'=ausgewählteFigur)) {
+		set Bewegbar=0
+	}
+	RETURN Bewegbar
+}
+
+Method setBewegbarAufZweiv3(andereFigur3, Bewegbar, vergleichsFigur, Augenzahl, andereFigur1, andereFigur2, ausgewählteFigur, HausNummer)
+{
+	;dreifache Blockierung + letzte blockierende Figur gewählt (-> kein Error)
+	if ((vergleichsFigur.Position=..Brett.getStartPosition(HausNummer))
+		&& ((vergleichsFigur.PositionAufBrett+Augenzahl)=andereFigur1.PositionAufBrett)
+		&& ((andereFigur1.PositionAufBrett+Augenzahl)=andereFigur2.PositionAufBrett)
+		&& ((andereFigur2.PositionAufBrett+Augenzahl)=andereFigur3.PositionAufBrett)
+		&& (andereFigur3=ausgewählteFigur)) {
+		set Bewegbar=2
+	}			
+	RETURN Bewegbar
+}
+
+Method setBewegbarAufNullv2(vergleichsFigur, Augenzahl, andereFigur1, andereFigur2, ausgewählteFigur, Bewegbar, HausNummer)
+{
+	;doppelte Blockierung + letzte blockierende Figur nicht gewählt (-> Error)
+	if ((vergleichsFigur.Position=..Brett.getStartPosition(HausNummer))
+		&& ((vergleichsFigur.PositionAufBrett+Augenzahl)=andereFigur1.PositionAufBrett)
+		&& ((andereFigur1.PositionAufBrett+Augenzahl)=andereFigur2.PositionAufBrett)
+		&& (andereFigur2'=ausgewählteFigur)) {
+		set Bewegbar=0
+	}
+	RETURN Bewegbar
+}
+
+Method setBewegbarAufZweiv2(vergleichsFigur, Augenzahl, andereFigur1, andereFigur2, ausgewählteFigur, Bewegbar, HausNummer)
+{
+	;doppelte Blockierung + letzte blockierende Figur gewählt (-> kein Error)
+	if ((vergleichsFigur.Position=..Brett.getStartPosition(HausNummer))
+		&& ((vergleichsFigur.PositionAufBrett+Augenzahl)=andereFigur1.PositionAufBrett)
+		&& ((andereFigur1.PositionAufBrett+Augenzahl)=andereFigur2.PositionAufBrett)
+		&& (andereFigur2=ausgewählteFigur)) {
+		set Bewegbar=2
+	}
+	RETURN Bewegbar
+}
+
+Method setBewegbarAufNullv1(vergleichsFigur, Augenzahl, andereFigur1, ausgewählteFigur, Bewegbar, HausNummer)
+{
+	;einfache Blockierung + blockierende Figur nicht gewählt (-> Error)
+	if ((vergleichsFigur.Position=..Brett.getStartPosition(HausNummer))
+		&& ((vergleichsFigur.PositionAufBrett+Augenzahl)=andereFigur1.PositionAufBrett)
+		&& (andereFigur1'=ausgewählteFigur)) {
+		set Bewegbar=0
+	}
+	RETURN Bewegbar
+}
+
+Method setBewegbarAufZweiv1(vergleichsFigur, Augenzahl, andereFigur1, ausgewählteFigur, Bewegbar, HausNummer)
+{
+	;einfache Blockierung + blockierende Figur gewählt (-> kein Error)
+	if ((vergleichsFigur.Position=..Brett.getStartPosition(HausNummer))
+		&& ((vergleichsFigur.PositionAufBrett+Augenzahl)=andereFigur1.PositionAufBrett)
+		&& (andereFigur1=ausgewählteFigur)) {
+		set Bewegbar=2
+	}
+	RETURN Bewegbar
+}
+
+Method setStartfeldFrei(aktuellerSpieler, gewählteFigur, HausNummer, Augenzahl)
+{
+	;Check, ob das Startfeld frei ist und die Figur somit aus dem Haus gesetzt werden kann; ist dies nicht der Fall, also ist das Startfeld besetzt, muss die
+	;nächstbewegbare, besetzende Figur bewegt werden
+	set ausgewählteFigur=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur)
+	set Bewegbar=1
+	set BewegbarNull=..checkSetzpflicht(aktuellerSpieler, Augenzahl, gewählteFigur, HausNummer)
+	if (BewegbarNull=2) {
+		RETURN Bewegbar
+	}
+	set Bewegbar=..checkStartfeldFrei(HausNummer, gewählteFigur, aktuellerSpieler, Bewegbar)
+	RETURN Bewegbar
+}
+
+Method checkStartfeldFrei(HausNummer, gewählteFigur, aktuellerSpieler, Bewegbar)
+{
+	;Check, ob Figur auf Startfeld steht
+	for i=1:1:4 {
+		CONTINUE:(i=gewählteFigur)
+		;
+		set Figur1=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(i)
+		if (Figur1.Position=..Brett.getStartPosition(HausNummer))  {
+			set Bewegbar=0
+		}
+	}
+	RETURN Bewegbar
+}
+
+Method checkForSechs(aktuellerSpieler, gewählteFigur, Augenzahl)
+{
+	;Check, ob 6 gewürfelt wurde falls Figur im Haus zum Bewegen gewählt wurde
+	set Bewegbar=1
+	set Position=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).Position
+	if ((Position=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).PositionImHaus) && (Augenzahl'=6)) {
+		set Bewegbar=0
+	} 
+	RETURN Bewegbar
+}
+
+Method checkImHaus(aktuellerSpieler, gewählteFigur, Augenzahl, HausNummer)
+{
+ 	;Check, ob noch Figuren im Haus sind falls 6 gewürfelt wurde (bei illegaler Wahl einer Figur im Feld zum Bewegen, es sei denn diese Figur steht auf Start)
+	set ausgewählteFigur=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur)
+	set Bewegbar=1	
+		if ((ausgewählteFigur.Position'=ausgewählteFigur.PositionImHaus) && (Augenzahl=6)
+			&& (ausgewählteFigur.Position'=..Brett.getStartPosition(HausNummer))
+			&& (((..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(1).Position=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(1).PositionImHaus))
+			|| (..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(2).Position=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(2).PositionImHaus)
+			|| (..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(3).Position=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(3).PositionImHaus)
+			|| (..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(4).Position=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(4).PositionImHaus))) {
+			set Bewegbar=0
+		} 
+	RETURN Bewegbar
+}
+
+Method checkUebersZielHinaus(aktuellerSpieler, gewählteFigur, Augenzahl, HausNummer)
+{
+	;Check, ob Figur mit Augenzahl über Ziel hinausgehen würde und somit ob Figur bewegbar ist
+	set ausgewählteFigur=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur)
+	set Bewegbar=1	
+	set Bewegbar=..setUebersZielHinaus(HausNummer, ausgewählteFigur, Augenzahl, Bewegbar)
+	RETURN Bewegbar
+}
+
+Method setUebersZielHinaus(HausNummer, ausgewählteFigur, Augenzahl, Bewegbar)
+{
+	;Unterscheidung in von Ziel aus über Zielfeld 4 hinaus oder von Hauptfelder über Zielfeld 4 hinaus
+	set Verschiebung=..setVerschiebung(HausNummer)
+	if (((ausgewählteFigur.PositionImZiel+Augenzahl>4) && (ausgewählteFigur.PositionImZiel'=0))
+		|| ((ausgewählteFigur.PositionAufBrett+Augenzahl)>(44+Verschiebung))) {
+		set Bewegbar=0
+	}
+	RETURN Bewegbar
+}
+
+Method setVerschiebung(HausNummer)
+{
+	;jedes Startfeld ist 10 Felder vom nächsten entfernt -> Entfernung des Startfelds von Startfeld für Haus 1 = Verschiebung
+	if (HausNummer=1) {
+		set Verschiebung=0
+	} elseif (HausNummer=2) {
+		set Verschiebung=10
+	} elseif (HausNummer=3) {
+		set Verschiebung=20
+	} elseif (HausNummer=4) {
+		set Verschiebung=30
+	}
+	RETURN Verschiebung
+}
+
+Method checkFeldFrei(Augenzahl, aktuellerSpieler, gewählteFigur, HausNummer)
+{
+	;Check, ob das zu besetzende Feld bereits von einer eigenen Figur besetzt und die Bewegung somit nicht möglich ist
+	set ausgewählteFigur=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur)
+	set Bewegbar=1
+	for j=1:1:4 {
+		CONTINUE:(j=gewählteFigur)
+		;
+		set vergleichsFigur=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(j)
+		set Bewegbar=..setFeldFrei(HausNummer, ausgewählteFigur, Augenzahl, vergleichsFigur, Bewegbar)
+		QUIT:(Bewegbar=0)
+	}
+	RETURN Bewegbar
+}
+
+Method setFeldFrei(HausNummer, ausgewählteFigur, Augenzahl, vergleichsFigur, Bewegbar)
+{
+	;Unterscheidung der Prüfung auf ein freies Feld auf 3 Fälle: Im Hauptfeld (1), im Ziel (2), Übergang von Hauptfeld zu Ziel (3)
+	set Verschiebung=..setVerschiebung(HausNummer)
+	if ((((ausgewählteFigur.PositionAufBrett+Augenzahl)=vergleichsFigur.PositionAufBrett) && (ausgewählteFigur.PositionImZiel=0)								;(1)
+		&& (vergleichsFigur.PositionImZiel=0) && ((ausgewählteFigur.PositionAufBrett+Augenzahl)<=(40+Verschiebung)) && (ausgewählteFigur.PositionAufBrett>0)) 	;(1)
+		|| (((ausgewählteFigur.PositionImZiel+Augenzahl)=vergleichsFigur.PositionImZiel) && (ausgewählteFigur.PositionImZiel'=0)								;(2)
+		&& (vergleichsFigur.PositionImZiel'=0)) 																												;(2)
+		|| ((((ausgewählteFigur.PositionAufBrett-(40+Verschiebung))+Augenzahl)=vergleichsFigur.PositionImZiel) && (vergleichsFigur.PositionImZiel'=0)			;(3)
+		&& (ausgewählteFigur.Position'=ausgewählteFigur.PositionImHaus))) {																						;(3)
+		set Bewegbar=0
+	}
+	RETURN Bewegbar
+}
+
+Method setAntiBockSpringen(aktuellerSpieler, gewählteFigur, Augenzahl, HausNummer)
+{
+	;im Ziel nicht überspringen
+	set ausgewählteFigur=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur)
+	set Bewegbar=1
+	set Bewegbar=..checkAntiBockSpringen(HausNummer, gewählteFigur, aktuellerSpieler, ausgewählteFigur, Augenzahl, Bewegbar)
+	RETURN Bewegbar
+}
+
+Method checkAntiBockSpringen(HausNummer, gewählteFigur, aktuellerSpieler, ausgewählteFigur, Augenzahl, Bewegbar)
+{
+	;Unterscheidung in Bewegung innerhalb des Ziels oder von Hauptfelder in Zielfelder
+	set Verschiebung=..setVerschiebung(HausNummer)
+	for i=1:1:4 {
+		CONTINUE:(i=gewählteFigur)
+		;
+		set vergleichsFigur=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(i)
+		if (((ausgewählteFigur.PositionAufBrett+Augenzahl-(40+Verschiebung))>vergleichsFigur.PositionImZiel && ((ausgewählteFigur.PositionAufBrett+Augenzahl)'>(44+Verschiebung))
+			&& (ausgewählteFigur.PositionImZiel=0) && (vergleichsFigur.PositionImZiel'=0))
+			|| (((ausgewählteFigur.PositionImZiel+Augenzahl)>vergleichsFigur.PositionImZiel) && (((ausgewählteFigur.PositionImZiel+Augenzahl)'>4)
+			&& (ausgewählteFigur.PositionImZiel'=0)) && (vergleichsFigur.PositionImZiel'=0) && (ausgewählteFigur.PositionImZiel'>vergleichsFigur.PositionImZiel))) {
+			set Bewegbar=0
+			RETURN Bewegbar
+		} 
+	}
+	RETURN Bewegbar
+}
+
+Method setUnbewegbar(Error, aktuellerSpieler, gewählteFigur)
+{
+	;Figur auf unbewegbar setzen, wenn Error aufgetreten ist
+	if (Error) {
+		set ..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).Bewegbar=0
+	}
+}
+
+Method writeZugNichtMoeglich()
+{
+	hang 0.75
+	do ..Brett.writeBoard()
+	write "Zug nicht möglich!", !
+	hang 0.75
+}
+
+Method getFigur(aktuellerSpieler, Augenzahl, HausNummer)
+{
+	;Figurenwahl + Errorausgabe, wenn eine unbewegbare Figur gewählt wird, Brett und Positionen der Figuren auf dem Brett ausgeben, auf Error checken
+	for {
+		do ..Brett.writeBoard()
+		do ..writePositionen(aktuellerSpieler)
+		do ..writeAugenzahl(Augenzahl, aktuellerSpieler)
+		set gewählteFigur=..chooseFigur()
+		if (..Quit=1) {
+			RETURN $$$OK
+		}
+		set Error=..setAndwriteError(aktuellerSpieler, gewählteFigur, HausNummer, Augenzahl)
+		QUIT:(Error=0)
+		hang:(Error=1) 1.5
+	}
+	RETURN gewählteFigur
+}
+
+Method writePositionen(aktuellerSpieler)
+{
+	;Ausgabe der aktuellen Positionen aller 4 Figuren des aktuellen Spielers
+	for Figur=1:1:4 {
+		do:(..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(Figur).Position=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(Figur).PositionImHaus) ..writePositionImHaus(Figur)
+		do:(..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(Figur).PositionImZiel>0) ..writePositionImZiel(Figur, aktuellerSpieler)
+		do:(..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(Figur).PositionAufBrett>40) ..writePositionAufBrettNotHouseOne(Figur, aktuellerSpieler)
+		do:((..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(Figur).PositionAufBrett<=40)
+			&& (..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(Figur).PositionAufBrett>0)) ..writePositionAufBrettHouseOne(Figur, aktuellerSpieler)
+	}
+}
+
+Method writePositionImHaus(Figur)
+{
+	write "Position Figur "_Figur_": Haus", !
+}
+
+Method writePositionImZiel(Figur, aktuellerSpieler)
+{
+	write "Position Figur "_Figur_": Ziel ", ..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(Figur).PositionImZiel, !
+}
+
+Method writePositionAufBrettNotHouseOne(Figur, aktuellerSpieler)
+{
+	write "Position Figur "_Figur_": ", (..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(Figur).PositionAufBrett-40), !
+}
+
+Method writePositionAufBrettHouseOne(Figur, aktuellerSpieler)
+{
+	write "Position Figur "_Figur_": ", ..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(Figur).PositionAufBrett, !
+}
+
+Method chooseFigur()
+{
+	;Figurenwahl (1-4 erlaubt), quit if 'q'
+	for {
+		write !, "Welche Figur möchtest du bewegen? "
+		read gewählteFigur#1, !
+		set gewählteFigur=$ZCVT(gewählteFigur, "U")
+		if (gewählteFigur="Q") {
+			set ..Quit=1
+			RETURN $$$OK
+		}
+		if ((gewählteFigur<1) || (gewählteFigur>4)) {
+			write !, "Invalid entry."
+		} else {QUIT}
+	}
+	RETURN gewählteFigur
+}
+
+Method setAndwriteError(aktuellerSpieler, gewählteFigur, HausNummer, Augenzahl)
+{
+	;ermitteln, welcher Error auftritt und welche Fehlermessage deshalb ausgegeben werden muss
+	set BewegbarNull=1, BewegbarEins=1, BewegbarZwei=1, BewegbarDrei=1, BewegbarVier=1, BewegbarFuenf=1, BewegbarSechs=1
+	set Error=1
+	for i=1:1:1 {
+		set BewegbarNull=..checkSetzpflicht(aktuellerSpieler, Augenzahl, gewählteFigur, HausNummer)
+		QUIT:(('BewegbarNull) || (BewegbarNull=2))
+		set BewegbarEins=..setStartfeldFrei(aktuellerSpieler, gewählteFigur, HausNummer, Augenzahl)
+		QUIT:('BewegbarEins)
+		set BewegbarZwei=..checkForSechs(aktuellerSpieler, gewählteFigur, Augenzahl)
+		QUIT:('BewegbarZwei)
+		set BewegbarDrei=..checkImHaus(aktuellerSpieler, gewählteFigur, Augenzahl, HausNummer)		
+		QUIT:('BewegbarDrei)
+		set BewegbarVier=..checkUebersZielHinaus(aktuellerSpieler, gewählteFigur, Augenzahl, HausNummer)	
+		QUIT:('BewegbarVier)
+		set BewegbarFuenf=..checkFeldFrei(Augenzahl, aktuellerSpieler, gewählteFigur, HausNummer)
+		QUIT:('BewegbarFuenf)
+		set BewegbarSechs=..setAntiBockSpringen(aktuellerSpieler, gewählteFigur, Augenzahl, HausNummer)
+		QUIT:('BewegbarSechs)
+		set Error=0
+	}
+	set:(BewegbarNull=2) Error=0
+	do ..writeError(BewegbarNull, BewegbarEins, BewegbarZwei, BewegbarDrei, BewegbarVier, BewegbarFuenf, BewegbarSechs)
+	RETURN Error
+}
+
+Method writeError(BewegbarNull, BewegbarEins, BewegbarZwei, BewegbarDrei, BewegbarVier, BewegbarFuenf, BewegbarSechs)
+{
+	;Errormessage ausgeben
+	write:('BewegbarNull) !, "Du musst die nächste nicht blockierte Figur setzen!", !
+	QUIT:('BewegbarNull)
+	write:('BewegbarEins) !, "Du musst deine Figur erst vom Startfeld setzen!", !
+	QUIT:('BewegbarEins)
+	write:('BewegbarZwei) !, "Du brauchst eine 6, um Figuren aus dem Haus rauszusetzen!", !
+	QUIT:('BewegbarZwei)
+	write:('BewegbarDrei) !, "Du musst deine Figuren erst aus dem Haus setzen!", !
+	QUIT:('BewegbarDrei)
+	write:('BewegbarVier) !, "Deine Figur würde über das Ziel hinausschießen!", !
+	QUIT:('BewegbarVier)
+	write:('BewegbarFuenf) !, "Auf dieser Position steht bereits eine deiner Figuren!", !
+	QUIT:('BewegbarVier)
+	write:('BewegbarSechs) !, "Figuren im Ziel dürfen nicht übersprungen werden!", !
+}
+
+Method setMove(aktuellerSpieler, Augenzahl, HausNummer, gewählteFigur, PositionImHaus, PositionAufBrett, Position, PositionImZiel)
+{
+	;ist die aktuelle Figur bewegbar, wird die Bewegung ausgeführt und anschließend animiert; wurde dabei eine Figur geschlagen, wird diese dann zurück in ihr Haus gesetzt
+	do:(..checkBewegbar(aktuellerSpieler, gewählteFigur)) ..movePlayer(Augenzahl, aktuellerSpieler, gewählteFigur, PositionImHaus, PositionAufBrett, Position, PositionImZiel, HausNummer)
+	do:((..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).PositionAufBrett>=0)
+		&& (..checkBewegbar(aktuellerSpieler, gewählteFigur))) ..getFigurAnimation(Augenzahl, aktuellerSpieler, gewählteFigur, HausNummer)
+	do ..setPruegel(aktuellerSpieler, gewählteFigur, HausNummer)
+}
+
+Method checkBewegbar(aktuellerSpieler, gewählteFigur)
+{
+	;gibt Boolean Bewegbar zurück
+	RETURN ..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).Bewegbar
+}
+
+Method movePlayer(Augenzahl, aktuellerSpieler, gewählteFigur, PositionImHaus, PositionAufBrett, Position, PositionImZiel, HausNummer)
+{
+	;[äußere Felder (Hauptfelder) bestehen aus 40 Feldern, jedes Startfeld des jeweiligen Hauses ist 10 Felder vom nächsten entfernt -> 'Verschiebung' negiert diese Differenz]
+	;die Figurbewegung unterscheidet sich in Bewegung vom Haus ins Feld (1), Bewegung innerhalb des Ziels (2), Übergangsbewegung von Haupt- zu Zielfeldern (3)
+	;und Bewegung auf den Hauptfeldern (4). Je nachdem in welcher Phase sich die aktuell zu bewegende Figur befindet, wird eine Methode ausgewählt
+	set Verschiebung=..setVerschiebung(HausNummer)
+	if (Position=PositionImHaus) {
+		do ..setPlayerOnStart(aktuellerSpieler, gewählteFigur, HausNummer)												;(1)				
+	} elseif (((PositionAufBrett+Augenzahl)<=(44+Verschiebung)) && (PositionAufBrett+Augenzahl>(40+Verschiebung))) {
+		do ..setPlayerInZiel(PositionAufBrett, Augenzahl, aktuellerSpieler, gewählteFigur, HausNummer)					;(2)
+	} elseif ((PositionImZiel>0) && (PositionImZiel<=4) && (PositionAufBrett="") && (PositionImZiel+Augenzahl'>4)) {
+		do ..movePlayerInZiel(PositionImZiel, Augenzahl, aktuellerSpieler, gewählteFigur, HausNummer)					;(3)
+	} elseif (Position'=PositionImHaus) {
+		do ..movePlayerOnBoard(aktuellerSpieler, gewählteFigur, Augenzahl)												;(4)
+	} else {
+		QUIT
+	}
+}
+
+Method setPlayerOnStart(aktuellerSpieler, gewählteFigur, HausNummer)
+{
+	;Bewegung aus Haus auf Startfeld
+	set Verschiebung=..setVerschiebung(HausNummer)
+	set Position=..Brett.getStartPosition(HausNummer)
+	set ..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).Position=Position					
+	set PositionAufBrett=1+Verschiebung
+	set ..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).PositionAufBrett=PositionAufBrett
+}
+
+Method movePlayerOnBoard(aktuellerSpieler, gewählteFigur, Augenzahl)
+{
+	;Bewegung auf Hauptfeldern
+	set PositionAufBrett=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).PositionAufBrett+Augenzahl
+	set ..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).PositionAufBrett=PositionAufBrett
+	set Position=..Brett.getPosition(PositionAufBrett)
+	set ..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).Position=Position
+}
+
+Method setPlayerInZiel(PositionAufBrett, Augenzahl, aktuellerSpieler, gewählteFigur, HausNummer)
+{
+	;Bewegung vom äußeren Feld ins Ziel
+	set Verschiebung=..setVerschiebung(HausNummer)
+	set PositionImZiel=((PositionAufBrett+Augenzahl)-(40+Verschiebung))
+	set ..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).PositionImZiel=PositionImZiel
+	set Position=..Brett.getPositionImZiel(HausNummer, PositionImZiel)
+	set ..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).Position=Position
+	set ..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).PositionAufBrett=""
+	set ..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).imZiel=1
+}
+
+Method movePlayerInZiel(PositionImZiel, Augenzahl, aktuellerSpieler, gewählteFigur, HausNummer)
+{
+	;Bewegung im Ziel
+	set PositionImZiel=PositionImZiel+Augenzahl
+	set ..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).PositionImZiel=PositionImZiel
+	set Position=..Brett.getPositionImZiel(HausNummer,PositionImZiel)
+	set ..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).Position=Position
+}
+
+Method getFigurAnimation(Augenzahl, aktuellerSpieler, gewählteFigur, HausNummer)
+{
+	;Animation der Figuren, keine Animation bei setzen von Haus auf Start
+	if (..setFigurAufStart(HausNummer, aktuellerSpieler, gewählteFigur)) {
+		QUIT
+	}
+	do ..setFigurenAnimation(Augenzahl, aktuellerSpieler, gewählteFigur, HausNummer)
+}
+
+Method setFigurAufStart(HausNummer, aktuellerSpieler, gewählteFigur)
+{
+	;Check, ob Figur auf Startfeld steht
+	set FigurAufStart=0
+	if (..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).Position=..Brett.getStartPosition(HausNummer)) {
+		set FigurAufStart=1
+	}
+	RETURN FigurAufStart
+}
+
+Method setFigurenAnimation(Augenzahl, aktuellerSpieler, gewählteFigur, HausNummer)
+{
+	;Animation der bewegten Figur und Abbildungen der nicht bewegten Figuren
+	set x=0
+	for i=1:1:Augenzahl {
+		set x=..setBewegteFigurAnimation(Augenzahl, aktuellerSpieler, gewählteFigur, HausNummer, x)
+		do ..setUnbewegteFigurenAnimation(aktuellerSpieler, gewählteFigur)
+		do ..Brett.writeBoard()
+		do ..Brett.clearBoard()
+		hang 0.55
+	}
+}
+
+Method setBewegteFigurAnimation(Augenzahl, aktuellerSpieler, gewählteFigur, HausNummer, x)
+{
+	;auf Hauptfeld (1), von Hauptfeld in Ziel (2), innerhalb Ziel (3)
+	set PositionAufBrett=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).PositionAufBrett
+	set altePositionAufBrett1=PositionAufBrett-(Augenzahl-x)
+	set PositionImZiel=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).PositionImZiel
+	set:(PositionImZiel>0) altePositionImZiel=PositionImZiel-(Augenzahl-x)
+	set:((PositionImZiel>0) && ((PositionImZiel-(Augenzahl-x))<1)) altePositionAufBrett2=..Brett.getPositionAufBrett(HausNummer, altePositionImZiel)
+	if (PositionImZiel=0) {
+		set x=..setFigurAnimationAufBrett(aktuellerSpieler, gewählteFigur, altePositionAufBrett1, x)										;(1)
+	} elseif ((altePositionImZiel<1) && (PositionImZiel>0) && (altePositionImZiel<1)) {
+		set x=..setFigurAnimationZielUebergang(HausNummer, altePositionImZiel, aktuellerSpieler, gewählteFigur, x, altePositionAufBrett2)	;(2)
+	} elseif ((PositionImZiel>0) && (altePositionImZiel>0)) {
+		set x=..setFigurAnimationImZiel(HausNummer, altePositionImZiel, aktuellerSpieler, gewählteFigur, x)									;(3)
+	} 
+	RETURN x
+}
+
+Method setFigurAnimationAufBrett(aktuellerSpieler, gewählteFigur, altePositionAufBrett1, x)
+{
+	;Figuranimation auf Hauptfeldern
+	set Position=..Brett.getPosition(altePositionAufBrett1)
+	set x=$I(x)
+	set ..Brett.Felder(Position)=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).Farbe
+	RETURN x
+}
+
+Method setFigurAnimationZielUebergang(HausNummer, altePositionImZiel, aktuellerSpieler, gewählteFigur, x, altePositionAufBrett2)
+{
+	;Figuranimation von Haupt- in Zielfelder
+	set Position=..Brett.getPosition(altePositionAufBrett2)
+	set x=$I(x)
+	set ..Brett.Felder(Position)=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).Farbe
+	RETURN x
+}
+
+Method setFigurAnimationImZiel(HausNummer, altePositionImZiel, aktuellerSpieler, gewählteFigur, x)
+{
+	;Figuranimation im Ziel
+	set Position=..Brett.getPositionImZiel(HausNummer, altePositionImZiel)
+	set x=$I(x)
+	set ..Brett.Felder(Position)=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur).Farbe
+	RETURN x
+}
+
+Method setUnbewegteFigurenAnimation(aktuellerSpieler, gewählteFigur)
+{
+	;"Animation" - Abbildung der unbewegten Figuren
+	for Spielernummer=1:1:..Spieler.Count() {
+		for Figur=1:1:4 {
+			set Position=..Spieler.GetAt(Spielernummer).Figuren.GetAt(Figur).Position
+			set PositionImHaus=..Spieler.GetAt(Spielernummer).Figuren.GetAt(Figur).PositionImHaus
+			set PositionAufBrett2=..Spieler.GetAt(Spielernummer).Figuren.GetAt(Figur).PositionAufBrett
+			set PositionImZiel2=..Spieler.GetAt(Spielernummer).Figuren.GetAt(Figur).PositionImZiel
+			if ((Position=PositionImHaus)) {
+				set ..Brett.Felder(PositionImHaus)=..Spieler.GetAt(Spielernummer).Figuren.GetAt(Figur).Farbe
+			} 
+			CONTINUE:((Spielernummer=aktuellerSpieler) && (Figur=gewählteFigur))
+			;
+			if (PositionAufBrett2>0) {
+				set ..Brett.Felder(..Brett.getPosition(PositionAufBrett2))=..Spieler.GetAt(Spielernummer).Figuren.GetAt(Figur).Farbe
+			} elseif (PositionImZiel2>0) {
+				set ..Brett.Felder(..Brett.getPositionImZiel(..Spieler.GetAt(Spielernummer).Start,PositionImZiel2))=..Spieler.GetAt(Spielernummer).Figuren.GetAt(Figur).Farbe
+			}
+		}
+	}
+}
+
+Method setPruegel(aktuellerSpieler, gewählteFigur, HausNummer)
+{
+	;Schlagen von Gegnern
+	set ausgewählteFigur=..Spieler.GetAt(aktuellerSpieler).Figuren.GetAt(gewählteFigur)
+	for i=1:1:..Spieler.Count() {
+		CONTINUE:(i=aktuellerSpieler)
+		;		
+		for j=1:1:4 {
+			set vergleichsFigur=..Spieler.GetAt(i).Figuren.GetAt(j)
+			do ..checkPruegel(HausNummer, ausgewählteFigur, vergleichsFigur)
+		}
+	}
+}
+
+Method checkPruegel(HausNummer, ausgewählteFigur, vergleichsFigur)
+{
+	;Fallunterscheidung je nachdem, zu welchem Haus die schlagende und geschlagene Figur jeweils gehören; anschließende Verfrachtung zurück ins Haus 
+	set Verschiebung=..setVerschiebung(HausNummer)
+	if (((ausgewählteFigur.PositionAufBrett=vergleichsFigur.PositionAufBrett)
+		|| (ausgewählteFigur.PositionAufBrett=(vergleichsFigur.PositionAufBrett-40))
+		|| ((ausgewählteFigur.PositionAufBrett-40)=vergleichsFigur.PositionAufBrett))
+		&& (ausgewählteFigur.PositionImZiel=0) && (vergleichsFigur.PositionImZiel=0)
+		&& ((ausgewählteFigur.PositionAufBrett)<=(40+Verschiebung))) {
+		set vergleichsFigur.Position=..getGeschlageneFigurPositionImHaus(vergleichsFigur)
+		set vergleichsFigur.PositionAufBrett=""
+	} else {
+		QUIT
+	}
+}
+
+Method getGeschlageneFigurPositionImHaus(vergleichsFigur)
+{
+	RETURN vergleichsFigur.PositionImHaus
+}
+
+Method setBoard(Position, PositionAufBrett, PositionImZiel, HausNummer)
+{
+	;refresh des Boards nach jedem Zug
+	do ..updateBoard(Position, PositionAufBrett, PositionImZiel, HausNummer)
+	do ..Brett.writeBoard()
+}
+
+Method updateBoard(Position, PositionAufBrett, PositionImZiel, HausNummer)
+{
+	;Brett leerräumen und wieder mit allen Figuren auf ihren neuen Positionen besetzen
+	do ..Brett.clearBoard()
+	do ..setFigurenAufBrett(Position, PositionAufBrett, PositionImZiel, HausNummer)
+}
+
+Method setFigurenAufBrett(Position, PositionAufBrett, PositionImZiel, HausNummer)
+{
+	;neue Positionen aller Figuren holen und diese Felder mit den Figuren besetzen
+	for i=1:1:..Spieler.Count() {
+		for j=1:1:4 {
+			set Position=..Spieler.GetAt(i).Figuren.GetAt(j).Position
+			set ..Brett.Felder(Position)=..Spieler.GetAt(i).Figuren.GetAt(j).Farbe
+		}
+	}
+}
+
+Method checkAlleImZiel(aktuellerSpieler)
+{
+	;Check, ob alle Figuren eines Spielers im Ziel sind
+	set Figur=..Spieler.GetAt(aktuellerSpieler).Figuren
+	set alleImZiel=1
+	for i=1:1:4 {
+		if ('Figur.GetAt(i).imZiel) {
+			set alleImZiel=0
+		}
+	}
+	RETURN alleImZiel
+}
+
+Method writeGameOver(aktuellerSpieler)
+{
+	write !, "Game Over! ", ..Spieler.GetAt(aktuellerSpieler).Name, " wins!"
+}
+
+}
