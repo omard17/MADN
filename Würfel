@@ -1,0 +1,14 @@
+Class Azubi.Spiele.MADN.Würfel Extends %RegisteredObject
+{
+
+Method %OnNew() As %Status
+{
+	RETURN $$$OK
+}
+
+Method rollDice()
+{
+	RETURN ($R(6)+1)
+}
+
+}
