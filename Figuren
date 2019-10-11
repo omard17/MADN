@@ -1,0 +1,33 @@
+Class Azubi.Spiele.MADN.Figuren Extends %RegisteredObject
+{
+
+Property Farbe As %String;
+
+Property HausNummer As %Integer;
+
+Property Bewegbar As %Boolean;
+
+Property imZiel As %Boolean;
+
+Property Position As %Numeric;
+
+Property PositionAufBrett As %Numeric;
+
+Property PositionImZiel As %Numeric;
+
+Property PositionImHaus As %Numeric;
+
+Method %OnNew(Farbe, HausNummer, Position) As %Status
+{
+	set ..Farbe=Farbe
+	set ..HausNummer=HausNummer
+	set ..Bewegbar=1
+	set ..imZiel=0
+	set ..Position=0
+	set ..PositionImHaus=""
+	set ..PositionImZiel=0
+	set ..PositionAufBrett=""
+	RETURN $$$OK
+}
+
+}
