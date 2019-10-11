@@ -1,0 +1,278 @@
+Class Azubi.Spiele.MADN.Brett Extends %RegisteredObject
+{
+
+Property Felder As %String [ MultiDimensional ];
+
+Property HauptFelder As %String [ MultiDimensional ];
+
+Property ZielFelder As %String [ MultiDimensional ];
+
+Property HausFelder As %String [ MultiDimensional ];
+
+Property StartFelder As %String [ MultiDimensional ];
+
+Property PositionAufBrett As %String [ MultiDimensional ];
+
+Method %OnNew() As %Status
+{
+	do ..setHauptFelder()
+	do ..setZielFelder()
+	do ..setHausFelder()
+	do ..setStartFelder()
+	do ..createBoard()
+	do ..writeBoard()
+	do ..setPositionAufBrett()
+	RETURN $$$OK
+}
+
+Method createBoard()
+{
+	for x=1:1:325 {
+		if (x=1) {
+			set ..Felder(1)="╔"
+		} elseif (x=25) {
+			set ..Felder(25)="╗"
+		} elseif (x=301) {
+			set ..Felder(301)="╚"
+		} elseif (x=325) {
+			set ..Felder(325)="╝"
+		} elseif ((x=26) || (x=50) || (x=51) || (x=75)  || (x=76)  ||(x=100)  || (x=101)  || (x=125)  || (x=126)  || (x=150)  || (x=151)  || (x=175)  || (x=176)  || (x=200)  || (x=201)  || (x=225)  || (x=226)  || (x=250)  || (x=251)  || (x=275)  || (x=276) || (x=300)) {
+			set ..Felder(x)="║"
+		} elseif ((x=2) || (x=3) || (x=4) || (x=5) || (x=6) || (x=7) || (x=8) || (x=9) || (x=10) || (x=11) || (x=12) || (x=13) || (x=14) || (x=15) || (x=16) || (x=17) || (x=18) || (x=19) || (x=20) || (x=21) || (x=22) || (x=23) || (x=24) || (x=302) || (x=303) || (x=304) || (x=305) || (x=306) || (x=307) || (x=308) || (x=309) || (x=310) || (x=311) || (x=312) || (x=313) || (x=314) || (x=315) || (x=316) || (x=317) || (x=318) || (x=319) || (x=320) || (x=321) || (x=322) || (x=323) || (x=324) || (x=324)) {
+			set ..Felder(x)="═"
+		} elseif ((x=28) || (x=30) || (x=36) || (x=38) || (x=26) || (x=46) 
+									  || (x=48) || (x=53) || (x=55) || (x=61) 
+									  || (x=65) || (x=71) || (x=73) || (x=86) 
+									  || (x=90) || (x=111) || (x=115) || (x=130) 
+									  || (x=132) || (x=134) || (x=136) || (x=140) 
+									  || (x=142) || (x=144) || (x=146) || (x=148) 
+									  || (x=153) || (x=173) || (x=178) || (x=180) 
+									  || (x=182) || (x=184) || (x=186) || (x=190)
+									  || (x=192) || (x=194) || (x=196) || (x=211)
+									  || (x=215) || (x=236) || (x=240) || (x=253)
+									  || (x=255) || (x=261) || (x=265) || (x=271)
+									  || (x=273) || (x=278) || (x=280) || (x=288)
+									  || (x=290) || (x=296) || (x=298)) {
+			set ..Felder(x)="○"
+		} elseif ((x=63) || (x=88) || (x=113) || (x=138) || (x=155) || (x=157) || (x=159) || (x=161) || (x=165) || (x=167) || (x=169) || (x=171) || (x=188) || (x=213) || (x=238) || (x=263)) {
+				set ..Felder(x)="□"
+		} elseif ((x=40) || (x=128) || (x=198) || (x=286)) {
+				set ..Felder(x)="Ѻ"
+		} else {
+			set ..Felder(x)=" "
+		}
+	}
+}
+
+Method writeBoard()
+{
+	write #
+	for i=1:1:325 {
+		write ..Felder(i)
+		if (i=25) {
+			write ?62, "Press 'q' to quit"		
+		}
+		write:(i#25=0) !
+	}
+}
+
+Method clearBoard()
+{
+	do ..createBoard()
+}
+
+Method setHauptFelder()
+{
+	set ..HauptFelder(1)=128	;Startfeld 1
+	set ..HauptFelder(2)=130
+	set ..HauptFelder(3)=132
+	set ..HauptFelder(4)=134
+	set ..HauptFelder(5)=136
+	set ..HauptFelder(6)=111
+	set ..HauptFelder(7)=86
+	set ..HauptFelder(8)=61
+	set ..HauptFelder(9)=36
+	set ..HauptFelder(10)=38	;Zielfeld 2
+	set ..HauptFelder(11)=40	;Startfeld 2
+	set ..HauptFelder(12)=65
+	set ..HauptFelder(13)=90
+	set ..HauptFelder(14)=115
+	set ..HauptFelder(15)=140
+	set ..HauptFelder(16)=142
+	set ..HauptFelder(17)=144
+	set ..HauptFelder(18)=146
+	set ..HauptFelder(19)=148
+	set ..HauptFelder(20)=173	;Zielfeld 3
+	set ..HauptFelder(21)=198	;Startfeld 3
+	set ..HauptFelder(22)=196
+	set ..HauptFelder(23)=194
+	set ..HauptFelder(24)=192
+	set ..HauptFelder(25)=190
+	set ..HauptFelder(26)=215
+	set ..HauptFelder(27)=240
+	set ..HauptFelder(28)=265
+	set ..HauptFelder(29)=290
+	set ..HauptFelder(30)=288	;Zielfeld 4
+	set ..HauptFelder(31)=286	;Startfeld 4
+	set ..HauptFelder(32)=261
+	set ..HauptFelder(33)=236
+	set ..HauptFelder(34)=211
+	set ..HauptFelder(35)=186
+	set ..HauptFelder(36)=184
+	set ..HauptFelder(37)=182
+	set ..HauptFelder(38)=180
+	set ..HauptFelder(39)=178
+	set ..HauptFelder(40)=153	;Zielfeld 1
+	set ..HauptFelder(41)=128	;Startfeld 1
+	set ..HauptFelder(42)=130
+	set ..HauptFelder(43)=132
+	set ..HauptFelder(44)=134
+	set ..HauptFelder(45)=136
+	set ..HauptFelder(46)=111
+	set ..HauptFelder(47)=86
+	set ..HauptFelder(48)=61
+	set ..HauptFelder(49)=36
+	set ..HauptFelder(50)=38	;Zielfeld 2
+	set ..HauptFelder(51)=40	;Startfeld 2
+	set ..HauptFelder(52)=65
+	set ..HauptFelder(53)=90
+	set ..HauptFelder(54)=115
+	set ..HauptFelder(55)=140
+	set ..HauptFelder(56)=142
+	set ..HauptFelder(57)=144
+	set ..HauptFelder(58)=146
+	set ..HauptFelder(59)=148
+	set ..HauptFelder(60)=173	;Zielfeld 3
+	set ..HauptFelder(61)=198	;Startfeld 3
+	set ..HauptFelder(62)=196
+	set ..HauptFelder(63)=194
+	set ..HauptFelder(64)=192
+	set ..HauptFelder(65)=190
+	set ..HauptFelder(66)=215
+	set ..HauptFelder(67)=240
+	set ..HauptFelder(68)=265
+	set ..HauptFelder(69)=290
+	set ..HauptFelder(70)=288	;Zielfeld 4
+	set ..HauptFelder(71)=286	;Startfeld 4
+	set ..HauptFelder(72)=261
+	set ..HauptFelder(73)=236
+	set ..HauptFelder(74)=211
+	set ..HauptFelder(75)=186
+	set ..HauptFelder(76)=184
+	set ..HauptFelder(77)=182
+	set ..HauptFelder(78)=180
+	set ..HauptFelder(79)=178
+	set ..HauptFelder(80)=153	;Zielfeld 1
+}
+
+Method getPosition(PositionAufBrett)
+{
+	RETURN ..HauptFelder(PositionAufBrett)
+}
+
+Method setZielFelder()
+{
+	set ..ZielFelder(1,0)= 153 ;Feld vor Ziel 1
+	set ..ZielFelder(1,1)= 155	;Ziel für Haus 1
+	set ..ZielFelder(1,2)= 157
+	set ..ZielFelder(1,3)= 159
+	set ..ZielFelder(1,4)= 161
+	set ..ZielFelder(2,0)= 38	;Feld vor Ziel 2
+	set ..ZielFelder(2,1)= 63	;Ziel für Haus 2
+	set ..ZielFelder(2,2)= 88
+	set ..ZielFelder(2,3)= 113
+	set ..ZielFelder(2,4)= 138
+	set ..ZielFelder(3,0)= 173	;Feld vor Ziel 3
+	set ..ZielFelder(3,1)= 171	;Haus 3
+	set ..ZielFelder(3,2)= 169
+	set ..ZielFelder(3,3)= 167
+	set ..ZielFelder(3,4)= 165
+	set ..ZielFelder(4,0)= 288	;Feld vor Ziel 4
+	set ..ZielFelder(4,1)= 263	;Haus 4
+	set ..ZielFelder(4,2)= 238
+	set ..ZielFelder(4,3)= 213
+	set ..ZielFelder(4,4)= 188
+}
+
+Method getPositionImZiel(HausNummer, PositionImZiel)
+{
+	RETURN ..ZielFelder(HausNummer,PositionImZiel)
+}
+
+Method setHausFelder()
+{
+	set ..HausFelder(1,1)=28
+	set ..HausFelder(1,2)=30
+	set ..HausFelder(1,3)=53
+	set ..HausFelder(1,4)=55
+	set ..HausFelder(2,1)=46
+	set ..HausFelder(2,2)=48
+	set ..HausFelder(2,3)=71
+	set ..HausFelder(2,4)=73
+	set ..HausFelder(3,1)=271
+	set ..HausFelder(3,2)=273
+	set ..HausFelder(3,3)=296
+	set ..HausFelder(3,4)=298
+	set ..HausFelder(4,1)=253
+	set ..HausFelder(4,2)=255
+	set ..HausFelder(4,3)=278
+	set ..HausFelder(4,4)=280
+}
+
+Method getPositionImHaus(HausNummer, PositionImHaus)
+{
+	RETURN ..HausFelder(HausNummer, PositionImHaus)
+}
+
+Method setStartFelder()
+{
+	set ..StartFelder(1)=128
+	set ..StartFelder(2)=40
+	set ..StartFelder(3)=198
+	set ..StartFelder(4)=286
+}
+
+Method getStartPosition(Startposition)
+{
+	RETURN ..StartFelder(Startposition)
+}
+
+Method setPositionAufBrett()
+{
+	;Nötige Method für Figuranimation von Hauptfelder in Zielfelder
+	;Hausnummer 1
+	set ..PositionAufBrett(1,0)=40
+	set ..PositionAufBrett(1,-1)=39
+	set ..PositionAufBrett(1,-2)=38
+	set ..PositionAufBrett(1,-3)=37
+	set ..PositionAufBrett(1,-4)=36
+	set ..PositionAufBrett(1,-5)=35
+	;Hausnummer 2
+	set ..PositionAufBrett(2,0)=50
+	set ..PositionAufBrett(2,-1)=49
+	set ..PositionAufBrett(2,-2)=48
+	set ..PositionAufBrett(2,-3)=47
+	set ..PositionAufBrett(2,-4)=46
+	set ..PositionAufBrett(2,-5)=45
+	;Hausnummer 3
+	set ..PositionAufBrett(3,0)=60
+	set ..PositionAufBrett(3,-1)=59
+	set ..PositionAufBrett(3,-2)=58
+	set ..PositionAufBrett(3,-3)=57
+	set ..PositionAufBrett(3,-4)=56
+	set ..PositionAufBrett(3,-5)=55
+	;Hausnummer 4
+	set ..PositionAufBrett(4,0)=70
+	set ..PositionAufBrett(4,-1)=69
+	set ..PositionAufBrett(4,-2)=68
+	set ..PositionAufBrett(4,-3)=67
+	set ..PositionAufBrett(4,-4)=66
+	set ..PositionAufBrett(4,-5)=65
+}
+
+Method getPositionAufBrett(HausNummer, altePositionImZiel)
+{
+	RETURN ..PositionAufBrett(HausNummer, altePositionImZiel)
+}
+
+}
